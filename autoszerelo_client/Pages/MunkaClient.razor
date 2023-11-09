@@ -1,0 +1,186 @@
+﻿@page "/"
+@page "/munkaclient"
+@using autoszerelo_munka_client.Model
+@inject HttpClient HttpClient
+
+<PageTitle>Munkakliens</PageTitle>
+
+<h3>MunkaClient</h3>
+
+<button class="btn btn-secondary" @onclick="LoadData">Adatok lekérése</button>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label for="sortColumn">Rendezési oszlop:</label>
+        <select class="form-control" id="sortColumn" @bind="@SortColumn">
+            <option value="UgyfelNeve">Ügyfél neve</option>
+            <option value="Tipus">Autó típusa</option>
+            <option value="Rendszam">Autó rendszáma</option>
+            <option value="GyartasiEv">Gyártási év</option>
+            <option value="MunkaKategoria">Munka kategória</option>
+            <option value="HibaLeiras">Hiba leírása</option>
+            <option value="HibaSulyossaga">Hiba súlyossága</option>
+            <option value="MunkaOra">Munka óra</option>
+            <option value="MunkaAllapota">Munka állapota</option>
+        </select>
+    </div>
+    <div class="col-md-6 mb-3">
+        <label for="sortDirection">Rendezési irány:</label>
+        <select class="form-control" id="sortDirection" @bind="@SortAscending">
+            <option value="Ascending">Növekvő</option>
+            <option value="Descending">Csökkenő</option>
+        </select>
+        <button class="btn btn-secondary" @onclick=SortByColumn>Rendezés</button>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <label for="searchColumn">Keresési oszlop:</label>
+        <select class="form-control" id="searchColumn" @bind="searchColumn">
+            <option value="UgyfelNeve" selected>Ügyfél neve</option>
+            <option value="Tipus">Autó típusa</option>
+            <option value="Rendszam">Autó rendszáma</option>
+            <option value="GyartasiEv">Gyártási év</option>
+            <option value="MunkaKategoria">Munka kategória</option>
+            <option value="HibaLeiras">Hiba leírása</option>
+            <option value="HibaSulyossaga">Hiba súlyossága</option>
+            <option value="MunkaOra">Munka óra</option>
+            <option value="MunkaAllapota">Munka állapota</option>
+        </select>
+        <input type="text" class="form-control" placeholder="Keresés" @bind="searchText" />
+        @if (string.IsNullOrEmpty(searchText) && MegnyomtaE)
+        {
+            <p class="text-danger">Kérem írjon be valamit a kereséshez!</p>
+        }
+        <button class="btn btn-secondary" @onclick="SearchColumn" id="keresesGomb">Keresés</button>
+    </div>
+    <div class="col-md-6 mb-3">
+        <button class="btn btn-primary" @onclick="UpdateList">Frissítés</button>
+    </div>
+</div>
+
+@if (Munkak != null)
+{
+    <table class="table table-light">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Ügyfél neve</th>
+                <th>Autó típusa</th>
+                <th>Autó rendszáma</th>
+                <th>Gyártási év</th>
+                <th>Munka kategória</th>
+                <th>Hiba leírása</th>
+                <th>Hiba súlyossága</th>
+                <th>Munka óra</th>
+                <th>Munka állapota</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var adott_munka in Munkak)
+            {
+                <tr>
+                    <td>@adott_munka.Id</td>
+                    <td>@adott_munka.UgyfelNeve</td>
+                    <td>@adott_munka.Tipus</td>
+                    <td>@adott_munka.Rendszam</td>
+                    <td>@adott_munka.GyartasiEv</td>
+                    <td>@adott_munka.MunkaKategoria</td>
+                    <td>@adott_munka.HibaLeiras</td>
+                    <td>@adott_munka.HibaSulyossaga</td>
+                    <td>@adott_munka.MunkaOra</td>
+                    <td>
+                        @if (adott_munka.MunkaAllapota == "Felvett munka")
+                        {
+                            <div>
+                                <span>Felvett munka</span>
+                                <button class="btn btn-primary" @onclick='(() => AllapotValtoztatas(adott_munka.Id, "Elvégzés alatt"))'>Elvégzés alatt</button>
+                            </div>
+                        }
+                        else if (adott_munka.MunkaAllapota == "Elvégzés alatt")
+                        {
+                            <div>
+                                <span>Elvégzés alatt</span>
+                                <button class="btn btn-primary" @onclick='(() => AllapotValtoztatas(adott_munka.Id, "Befejezett"))'>Befejezett</button>
+                            </div>
+                        }
+                        else if (adott_munka.MunkaAllapota == "Befejezett")
+                        {
+                            <span>Befejezett</span>
+                        }
+                        else
+                        {
+                            <span>@adott_munka.MunkaAllapota</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Betöltés...</p>
+}
+
+@code {
+    private IEnumerable<Munka>? Munkak { get; set; }
+    private string SortColumn { get; set; } = "UgyfelNeve"; //Tipp: ahogy látom, ha egyből betölt az oldal, nincs alapértelmezett értéke a SortColumn-nak
+                                                            //private string SearchText { get; set; } //felesleges
+    private string SortAscending { get; set; } = "Ascending";
+    public string searchColumn { get; set; } = "UgyfelNeve"; //Tipp: ahogy látom, ha egyből betölt az oldal, nincs alapértelmezett értéke a searchColumn-nak
+    public string searchText { get; set; }
+    public bool MegnyomtaE { get; set; } = false;
+
+    private void SortByColumn()
+    {
+        Console.WriteLine((Munkak != null).ToString());
+        Console.WriteLine((!string.IsNullOrEmpty(SortColumn)).ToString());
+        Console.WriteLine(searchColumn);
+        if (Munkak != null && !string.IsNullOrEmpty(SortColumn))
+        {
+            if (SortAscending.Equals("Ascending"))
+            {
+                Munkak = Munkak.OrderBy(munka => munka?.GetType().GetProperty(SortColumn)?.GetValue(munka)).ToList();
+            }
+            else
+            {
+                Munkak = Munkak.OrderByDescending(munka => munka?.GetType().GetProperty(SortColumn)?.GetValue(munka)).ToList();
+            }
+        }
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        Munkak = await HttpClient.GetFromJsonAsync<List<Munka>>("http://localhost:5248/Database");
+    }
+
+    protected async Task AllapotValtoztatas(int munkaId, string ujAllapot)
+    {
+        var munka = Munkak.FirstOrDefault(m => m.Id == munkaId);
+        if (munka != null)
+        {
+            munka.MunkaAllapota = ujAllapot;
+            await HttpClient.PutAsJsonAsync($"http://localhost:5248/Database/{munkaId.ToString()}", munka);
+        }
+    }
+    private void SearchColumn()
+    {
+        MegnyomtaE = true;
+        if (Munkak != null && !string.IsNullOrEmpty(searchText))
+        {
+            Munkak = Munkak.Where(munka => munka?.GetType().GetProperty(searchColumn)?.GetValue(munka)?.ToString() == searchText).ToList();
+        }
+    }
+    private async Task UpdateList()
+    {
+        await LoadData();
+    }
+}

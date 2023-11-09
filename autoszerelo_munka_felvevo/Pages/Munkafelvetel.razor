@@ -1,0 +1,263 @@
+@page "/"
+@page "/munkafelvetel"
+@using autoszerelo_munka_felvevo.Model
+@using System.ComponentModel.DataAnnotations
+@using System.Linq
+@using System.Collections.Generic
+@using System.Net.Http.Json;
+@inject HttpClient HttpClient
+
+<PageTitle>Munkafelvétel</PageTitle>
+
+<h3>Munkafelvétel</h3>
+
+@if (!IsSubmitted)
+{
+    <EditForm Model="@UjMunka">
+        <div class="form-group">
+            <label>Ügyfél neve:</label>
+            <input class="form-control" @bind="@UjMunka.UgyfelNeve" />
+            <ValidationMessage For="@(() => UjMunka.UgyfelNeve)" />
+        </div>
+        <div class="form-group">
+            <label>Autó típusa:</label>
+            <input class="form-control" @bind="@UjMunka.Tipus" />
+            <ValidationMessage For="@(() => UjMunka.Tipus)" />
+        </div>
+        <div class="form-group">
+            <label>Autó rendszáma:</label>
+            <input class="form-control" @bind="@UjMunka.Rendszam" />
+            <ValidationMessage For="@(() => UjMunka.Rendszam)" />
+        </div>
+        <div class="form-group">
+            <label>Gyártási év:</label>
+            <input class="form-control" type="number" @bind="@UjMunka.GyartasiEv" />
+            <ValidationMessage For="@(() => UjMunka.GyartasiEv)" />
+        </div>
+        <div class="form-group">
+            <label>Munka kategória:</label>
+            <select class="form-control" @bind="@UjMunka.MunkaKategoria">
+                <option value="">Válasszon</option>
+                <option value="Karosszéria">Karosszéria</option>
+                <option value="motor">Motor</option>
+                <option value="futómű">Futómű</option>
+                <option value="fékberendezés">Fékberendezés</option>
+            </select>
+            <ValidationMessage For="@(() => UjMunka.MunkaKategoria)" />
+        </div>
+        <div class="form-group">
+            <label>Az autó hibájának leírása:</label>
+            <input class="form-control" @bind="@UjMunka.HibaLeiras" />
+            <ValidationMessage For="@(() => UjMunka.HibaLeiras)" />
+        </div>
+        <div class="form-group">
+            <label>A hiba súlyossága (1-10):</label>
+            <input class="form-control" type="number" min="1" max="10" @bind="@UjMunka.HibaSulyossaga" />
+            <ValidationMessage For="@(() => UjMunka.HibaSulyossaga)" />
+        </div>
+        <button class="btn btn-primary" @onclick="SubmitForm">Munka felvétele</button>
+    </EditForm>
+}
+else
+{
+    <p>Munka sikeresen felvéve.</p>
+}
+
+<h3>Meglévő munkák</h3>
+@if (Munkak != null)
+{
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label for="sortColumn">Rendezési oszlop:</label>
+            <select class="form-control" id="sortColumn" @bind="SortColumn">
+                <option value="UgyfelNeve">Ügyfél neve</option>
+                <option value="Tipus">Autó típusa</option>
+                <option value="Rendszam" selected>Autó rendszáma</option>
+                <option value="GyartasiEv">Gyártási év</option>
+                <option value="MunkaKategoria">Munka kategória</option>
+                <option value="HibaLeiras">Hiba leírása</option>
+                <option value="HibaSulyossaga">Hiba súlyossága</option>
+                <option value="MunkaOra">Munka óra</option>
+                <option value="MunkaAllapota">Munka állapota</option>
+            </select>
+            <select class="form-control" id="order" @bind=SortAscending>
+                <option value="Ascending" selected>Növekvő</option>
+                <option value="Descending">Csökkenő</option>
+            </select>
+            <button class="btn btn-secondary" @onclick="SortByColumn">Rendezés</button>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label for="searchColumn">Keresési oszlop:</label>
+            <select class="form-control" id="searchColumn" @bind="searchColumn">
+                <option value="UgyfelNeve">Ügyfél neve</option>
+                <option value="Tipus">Autó típusa</option>
+                <option value="Rendszam" selected>Autó rendszáma</option>
+                <option value="GyartasiEv">Gyártási év</option>
+                <option value="MunkaKategoria">Munka kategória</option>
+                <option value="HibaLeiras">Hiba leírása</option>
+                <option value="HibaSulyossaga">Hiba súlyossága</option>
+                <option value="MunkaOra">Munka óra</option>
+                <option value="MunkaAllapota">Munka állapota</option>
+            </select>
+            <input type="text" class="form-control" placeholder="Keresés" @bind="searchText"/>
+            @if (string.IsNullOrEmpty(searchText) && MegnyomtaE)
+            {
+                <p class="text-danger">Kérem írjon be valamit a kereséshez!</p>
+            }
+            <button class="btn btn-secondary" @onclick="SearchColumn">Keresés</button>
+        </div>
+        <div class="col-md-6 mb-3">
+            <button class="btn btn-primary" @onclick="UpdateList">Frissítés</button>
+        </div>
+    </div>
+    <table class="table table-light">
+        <thead>
+            <tr>
+                <th>Ügyfél neve</th>
+                <th>Autó típusa</th>
+                <th>Autó rendszáma</th>
+                <th>Gyártási év</th>
+                <th>Munka kategória</th>
+                <th>Az autó hibájának leírása</th>
+                <th>A hiba súlyossága</th>
+                <th>Munkaóra esztimáció</th>
+                <th>Munka állapota</th>
+                <th>Műveletek</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (modositasVan)
+            {
+                <tr>
+                    <td><input class="form-control" @bind="modositoMunka.UgyfelNeve" /></td>
+                    <td><input class="form-control" @bind="modositoMunka.Tipus" /></td>
+                    <td><input class="form-control" @bind="modositoMunka.Rendszam" /></td>
+                    <td><input class="form-control" @bind="modositoMunka.GyartasiEv" /></td>
+                    <select class="form-control" @bind="modositoMunka.MunkaKategoria">
+                        <option value="Karosszéria">Karosszéria</option>
+                        <option value="motor">Motor</option>
+                        <option value="futómű">Futómű</option>
+                        <option value="fékberendezés">Fékberendezés</option>
+                    </select>
+                    <td><input class="form-control" @bind="modositoMunka.HibaLeiras" /></td>
+                    <td><input class="form-control" @bind="modositoMunka.HibaSulyossaga" /></td>
+                    <td>
+                        <button class="btn btn-secondary" @onclick="ModositasokKuldese">Módosítások mentése</button>
+                    </td>
+                </tr>
+            }
+            @foreach (var munka in Munkak)
+            {
+                <tr>
+                    <td>@munka.UgyfelNeve</td>
+                    <td>@munka.Tipus</td>
+                    <td>@munka.Rendszam</td>
+                    <td>@munka.GyartasiEv</td>
+                    <td>@munka.MunkaKategoria</td>
+                    <td>@munka.HibaLeiras</td>
+                    <td>@munka.HibaSulyossaga</td>
+                    <td>@munka.MunkaOra</td>
+                    <td>@munka.MunkaAllapota</td>
+                    <td>
+                        <button class="btn btn-secondary" @onclick="() => ModifyMunka(munka)">Módosítás</button>
+                    </td>
+                </tr>
+            }
+
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Adatok betöltése...</p>
+}
+
+@code {
+    private Munka UjMunka { get; set; } = new Munka();
+    private bool IsSubmitted { get; set; } = false;
+    //private List<Munka> Munkak { get; set; }
+    private IEnumerable<Munka>? Munkak { get; set; }
+
+    private string SortColumn { get; set; } = "UgyfelNeve";
+    private string SortAscending { get; set; } = "Ascending";
+
+    public string searchColumn { get; set; } = "UgyfelNeve";
+    public string searchText { get; set; }
+
+    public bool modositasVan = false;
+    public Munka modositoMunka { get; set; } = new Munka();
+    public int ModositandoMunka { get; set; }
+    public bool MegnyomtaE { get; set; } = false;
+
+    private void SortByColumn()
+    {
+        if (Munkak != null && !string.IsNullOrEmpty(SortColumn))
+        {
+            if (SortAscending.Equals("Ascending"))
+            {
+                Munkak = Munkak.OrderBy(munka => munka?.GetType().GetProperty(SortColumn)?.GetValue(munka)).ToList();
+            }
+            else
+            {
+                Munkak = Munkak.OrderByDescending(munka => munka?.GetType().GetProperty(SortColumn)?.GetValue(munka)).ToList();
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        Munkak = await HttpClient.GetFromJsonAsync<List<Munka>>("http://localhost:5248/Database");
+    }
+
+    private async Task SubmitForm()
+    {
+        var validationContext = new ValidationContext(UjMunka);
+        var validationResults = new List<ValidationResult>();
+        if (Validator.TryValidateObject(UjMunka, validationContext, validationResults, true))
+        {
+            UjMunka.MunkaAllapota = "Felvett munka";
+            // Validáció sikeres, elküldhetjük az adatokat a szervertől
+            await HttpClient.PostAsJsonAsync("http://localhost:5248/Database", UjMunka);
+
+            IsSubmitted = true;
+
+            await LoadData(); // Frissítsük az adatokat
+        }
+    }
+
+    private void ModifyMunka(Munka munka)
+    {
+        modositasVan = true;
+        ModositandoMunka = munka.Id;
+    }
+    private async Task ModositasokKuldese()
+    {
+        modositoMunka.MunkaAllapota = "Felvett munka";
+        modositoMunka.Id = ModositandoMunka;
+        await HttpClient.PutAsJsonAsync($"http://localhost:5248/Database/{ModositandoMunka.ToString()}", modositoMunka);
+        modositasVan = false;
+        modositoMunka = new Munka();
+        ModositandoMunka = -1;
+        await LoadData();
+    }
+    private void SearchColumn()
+    {
+        MegnyomtaE = true;
+        if (Munkak != null && !string.IsNullOrEmpty(searchText))
+        {
+            Munkak = Munkak.Where(munka => munka?.GetType().GetProperty(searchColumn)?.GetValue(munka)?.ToString() == searchText).ToList();
+        }
+    }
+    private async Task UpdateList()
+    {
+        await LoadData();
+    }
+}
